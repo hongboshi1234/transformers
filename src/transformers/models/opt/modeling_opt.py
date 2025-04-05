@@ -99,6 +99,7 @@ class OPTLearnedPositionalEmbedding(nn.Embedding):
         return super().forward(position_ids + self.offset)
 
 
+
 class OPTAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
@@ -149,6 +150,8 @@ class OPTAttention(nn.Module):
         cache_position: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Cache]]:
         """Input shape: Batch x Time x Channel"""
+        from transformers.custom_util import Timer
+        timer = Timer()
         bsz, tgt_len, _ = hidden_states.size()
 
         # get query proj
@@ -191,7 +194,7 @@ class OPTAttention(nn.Module):
         # partitioned aross GPUs when using tensor-parallelism.
         attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
         attn_output = self.out_proj(attn_output)
-
+        timer.end_timer("OPTAttention")
         return attn_output, attn_probs, past_key_value
 
 
@@ -414,9 +417,9 @@ class OPTDecoderLayer(nn.Module):
             cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
                 Indices depicting the position of the input sequence tokens in the sequence..
         """
-
+        from transformers.custom_util import Timer
+        timer = Timer()
         residual = hidden_states
-
         # 125m, 1.7B, ..., 175B applies layer norm BEFORE attention
         if self.do_layer_norm_before:
             hidden_states = self.self_attn_layer_norm(hidden_states)
@@ -467,6 +470,7 @@ class OPTDecoderLayer(nn.Module):
         if use_cache:
             outputs += (present_key_value,)
 
+        timer.end("OPTDecoderLayer")
         return outputs
 
 
